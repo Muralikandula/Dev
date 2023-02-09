@@ -1,3 +1,11 @@
+provider "azurerm" {
+  version = "2.0"
+
+  tenant_id       = "1d4343e0-5b18-4d5e-bdbf-d838eb748f55"
+  client_id       = "your-client-id"
+  client_secret   = "your-client-secret"
+}
+
 resource "azurerm_resource_group" "example" {
   name     = "example-resources"
   location = "West Europe"
