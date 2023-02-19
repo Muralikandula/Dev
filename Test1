@@ -1,0 +1,163 @@
+---
+#basis
+target_microservice_server_ip: 10.104.158.172
+target_microservice_server_fqdn: lue1vc7063{{ fqdn }} 
+
+
+volumes:  
+- pvs: /dev/nvme7n1    
+vg: vg_home    
+lv: lv_{{ db_sid | lower }}adm    
+mount: /home/{{ db_sid | lower }}adm    
+size: 5g
+
+- pvs: /dev/nvme7n1    
+vg: vg_home    
+lv: lv_ora{{ db_sid | lower }}    
+mount: /home/ora{{ db_sid | lower }}    
+size: 5g 
+ 
+- pvs: /dev/nvme7n1    
+vg: vg_home    
+lv: lv_{{ daa_sid | lower }}adm    
+mount: /home/{{ daa_sid | lower }}adm    
+size: 5g
+ 
+- pvs: /dev/nvme7n1    
+vg: vg_home    
+lv: lv_sapadm    
+mount: /home/sapadm    
+size: 4g
+ 
+- pvs: /dev/nvme5n1    
+vg: vg_usr_sap    
+lv: lv_usr_sap    
+mount: /usr/sap    
+size: 5g
+  
+- pvs: /dev/nvme5n1    
+vg: vg_usr_sap    
+lv: lv_usr_sap_ccms    
+mount: /usr/sap/ccms    
+size: 5g
+  
+- pvs: /dev/nvme5n1    
+vg: vg_usr_sap    
+lv: lv_usr_sap_{{ db_sid | lower }}    
+mount: /usr/sap/{{ db_sid | upper }}    
+size: 10g  
+
+- pvs: /dev/nvme5n1    
+vg: vg_usr_sap    
+lv: lv_usr_sap_{{ daa_sid | lower }}    
+mount: /usr/sap/{{ daa_sid | upper }}    
+size: 5g
+
+- pvs: /dev/nvme13n1    
+vg: vg_oracle    lv: lv_oracle    
+mount: /oracle    
+size: 5g
+ 
+- pvs: /dev/nvme13n1    
+vg: vg_oracle    
+lv: lv_oracle_{{ db_sid | lower }}    
+mount: /oracle/{{ db_sid | upper }}    
+size: 10g  
+
+- pvs: /dev/nvme13n1    
+vg: vg_oracle    
+lv: lv_oracle_{{ db_sid | upper }}_19.0.0    
+mount: /oracle/{{ db_sid | upper }}/19.0.0    
+size: 35g  
+
+- pvs: /dev/nvme13n1    
+vg: vg_oracle    
+lv: lv_oracle_{{ db_sid | lower }}_sapreorg    
+mount: /oracle/{{ db_sid | upper }}/sapreorg    
+size: 5g      
+
+- pvs: /dev/nvme13n1    
+vg: vg_oracle    
+lv: lv_opt_oracle_libs    
+mount: /opt/oracle/libs    
+size: 5g  
+
+- pvs: /dev/nvme13n1    
+vg: vg_oracle    
+lv: lv_opt_oracle_oraepm    
+mount: /opt/oracle/oraepm    
+size: 5g  
+
+- pvs: /dev/nvme11n1    
+vg: vg_oracle_{{ db_sid | lower }}_origlog    
+lv: lv_oracle_{{ db_sid | lower }}_origlogA    
+mount: /oracle/{{ db_sid | upper }}/origlogA    
+size: 5g  
+
+- pvs: /dev/nvme11n1    
+vg: vg_oracle_{{ db_sid | lower }}_origlog    
+lv: lv_oracle_{{ db_sid | lower }}_origlogB    
+mount: /oracle/{{ db_sid | upper }}/origlogB    
+size: 5g  
+
+- pvs: /dev/nvme14n1    
+vg: vg_oracle_{{ db_sid | lower }}_mirrlog    
+lv: lv_oracle_{{ db_sid | lower }}_mirrlogA    
+mount: /oracle/{{ db_sid | upper }}/mirrlogA    
+size: 5g  
+
+- pvs: /dev/nvme14n1    
+vg: vg_oracle_{{ db_sid | lower }}_mirrlog    
+lv: lv_oracle_{{ db_sid | lower }}_mirrlogB    
+mount: /oracle/{{ db_sid | upper }}/mirrlogB    
+size: 5g  
+
+- pvs: /dev/nvme1n1    
+vg: vg_oracle_{{ db_sid | lower }}_oraarch    
+lv: lv_oracle_{{ db_sid | lower }}_oraarch    
+mount: /oracle/{{ db_sid | upper }}/oraarch  
+
+- pvs: /dev/nvme9n1    
+vg: vg_oracle_{{ db_sid | lower }}_oraflash    
+lv: lv_oracle_{{ db_sid | lower }}_oraflash    
+mount: /oracle/{{ db_sid | upper }}/oraflash  
+
+- pvs: /dev/nvme2n1,/dev/nvme3n1    
+stripes: 2    
+stripe_size: 256    
+vg: vg_oracle_{{ db_sid | lower }}_sapdata1    
+lv: lv_oracle_{{ db_sid | lower }}_sapdata1    
+mount: /oracle/{{ db_sid | upper }}/sapdata1  
+
+- pvs: /dev/nvme6n1,/dev/nvme4n1    
+stripes: 2    
+stripe_size: 256    
+vg: vg_oracle_{{ db_sid | lower }}_sapdata2    
+lv: lv_oracle_{{ db_sid | lower }}_sapdata2    
+mount: /oracle/{{ db_sid | upper }}/sapdata2  
+
+- pvs: /dev/nvme10n1,/dev/nvme12n1    
+stripes: 2    
+stripe_size: 256    
+vg: vg_oracle_{{ db_sid | lower }}_sapdata3    
+lv: lv_oracle_{{ db_sid | lower }}_sapdata3    
+mount: /oracle/{{ db_sid | upper }}/sapdata3  
+
+- pvs: /dev/nvme16n1,/dev/nvme15n1    
+stripes: 2    
+stripe_size: 256    
+vg: vg_oracle_{{ db_sid | lower }}_sapdata4    
+lv: lv_oracle_{{ db_sid | lower }}_sapdata4    
+mount: /oracle/{{ db_sid | upper }}/sapdata4 
+
+swap_disk_volume: /dev/nvme8n1 
+
+mounts:  
+- source: "{{ efs_media }}:/Wave2/TC1/AB2"    
+path: /usr/sap/sapinst  
+- source: "{{ efs_mount }}:/AB2/sapmnt"    
+path: /sapmnt/{{ app_sid|upper }}  
+- source: "{{ efs_mount }}:/AB2/put"    
+path: /usr/sap/{{ app_sid|upper }}/put  
+- source: "{{ efs_mount_oracle }}:/AB2/oracle_client/"    
+path: /oracle/client
