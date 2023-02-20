@@ -1,0 +1,364 @@
+- hosts: all
+  any_errors_fatal: true
+
+# Create directory inside efs
+- name: create directory inside efs  
+  hosts: pas
+  become: True
+  any_errors_fatal: true
+  roles:
+    - role: create_efs_dir
+  environment: "{{ proxy_env }}"
+
+# Infra configurations on ALL server
+- name: infra pre requisite implementation  
+  hosts: all
+  become: True
+  any_errors_fatal: true
+  roles:
+    - role: aws_setting_hostname
+    - role: sap_aws_os_prereq
+    - role: linux_hostfile
+    - role: create_users_groups
+    - role: filesystem_setup
+    - role: aws_swapfile
+    - role: prereqs_os
+    - role: linux_mounts
+    - role: create_folder
+  environment: "{{ proxy_env }}"
+
+# Setting profile on ASCS and ERS server if "cluster_ascs_ers" group is defined
+- name: ascs-ers cluster prereqs
+  hosts: cluster_ascs_ers
+  become: True
+  any_errors_fatal: true
+  roles:
+    - role: sap_preconfigure
+    - role: sap_application_preconfigure
+    - role: aws_setting_profile_config
+      when: "'cluster_ascs_ers' in groups"
+  environment: "{{ proxy_env }}"
+
+# oracle microservices pre install on DB server if "db_pas_ascs" group is defined
+- name: oracle microservices pre install
+  hosts: db_oracle
+  any_errors_fatal: true
+  serial: 1
+  roles:
+    - role: oracle_microservices_pre_install
+      when: "'db_oracle' in groups"
+  environment: "{{ proxy_env }}"
+
+# Preconfiguration and oracle S/W installation on DB server if "db_oracle" group is defined
+- name: oracle install
+  hosts: db_oracle
+  become: True
+  any_errors_fatal: true
+  roles:
+    - role: oracle_19c
+      when: "'db_oracle' in groups"
+  environment: "{{ proxy_env }}"
+
+# ASCS/SCS Installation on ASCS server if "ascs" group is defined 
+- name: ascs install 
+  hosts: ascs
+  become: True
+  any_errors_fatal: true
+  vars:
+    role: ascs
+    virtual_hostname: "{{ virtual_hostnames.ascs.name }}"
+  roles:
+    - role: install_sap    
+      when: "'ascs' in groups"  
+  environment: "{{ proxy_env }}"
+
+# ERS Installation on ERS server if "ers" group is defined
+- name: ers install 
+  hosts: ers
+  become: True
+  any_errors_fatal: true
+  vars:
+    role: ers
+    virtual_hostname: "{{ virtual_hostnames.ers.name }}"
+  roles:
+    - role: install_sap
+      when: "'ers' in groups"
+  environment: "{{ proxy_env }}"
+
+# oracle LOAD Installation on db primary server for HA scenario
+- name: oracle load install
+  hosts: db_oracle_primary
+  become: True
+  any_errors_fatal: true
+  vars:
+    role: db_instance
+    virtual_hostname: "{{ virtual_hostnames.db.name }}"
+  roles:
+    - role: install_sap
+      when: "'db_oracle_primary' in groups"
+  environment: "{{ proxy_env }}"
+
+# oracle LOAD Installation on db server for non HA scenario
+- name: oracle load install
+  hosts: db_pas_ascs
+  become: True
+  any_errors_fatal: true
+  vars:
+    role: db_instance
+    virtual_hostname: "{{ virtual_hostnames.db.name }}"
+  roles:
+    - role: install_sap
+      when: "'db_pas_ascs' in groups"
+  environment: "{{ proxy_env }}"
+
+# PAS Installation on PAS server if "pas" group is defined
+- name: pas install
+  hosts: pas
+  become: True
+  any_errors_fatal: true
+  vars:
+    role: pas
+    virtual_hostname: "{{ virtual_hostnames.pas.name }}"
+  roles:
+    - role: install_sap
+      when: "'pas' in groups"
+  environment: "{{ proxy_env }}"
+
+# AAS Installation on AAS server if "aas" group is defined
+- name: aas install
+  hosts: aas
+  become: True
+  any_errors_fatal: true
+  vars:
+    role: aas
+  roles:
+    - role: install_sap_aas
+      when: "'aas' in groups"
+  environment: "{{ proxy_env }}"
+
+# ASCS-ERS cluster setup on ASCS and ERS server if "cluster_ascs_ers" group is defined
+- name: ascs_ers cluster
+  hosts: cluster_ascs_ers
+  become: True
+  any_errors_fatal: true
+  roles:
+    - role: aws_setting_overlayip
+    - role: linux_cluster
+    - role: linux_cluster_ascs_ers_resource
+    - role: linux_retrive
+      when: "'cluster_ascs_ers' in groups"
+
+# DB cluster setup on DB server if "cluster_db" group is defined
+- name: db cluster
+  hosts: cluster_db_oracle
+  become: True
+  any_errors_fatal: true
+  roles:
+    - role: aws_setting_overlayip
+      when: "'cluster_db_oracle' in groups"
+
+# OverlayIp setup on PAS and AAS server if "cluster_ascs_ers" and "cluster_db_oracle" groups are defined
+- name: setting overlay ip for both app and db HA
+  hosts: pas:aas
+  any_errors_fatal: true
+  roles:
+    - role: aws_setting_overlayip
+      when: "'cluster_ascs_ers' in groups and 'cluster_db_oracle' in groups"
+
+# daa agent installation on all servers
+- name: daa installation
+  hosts: all
+  vars:
+    product_id: "{{ product_ids.daa }}"
+    virtual_hostname: "{{ ansible_hostname }}"
+    role: daa
+  roles:
+    - role: install_sap
+  environment: "{{ proxy_env }}"
+
+# sapacext install, jvm update steps run in all server
+- name: sapacext install and jvm update
+  hosts: all
+  become: True
+  any_errors_fatal: true
+  roles:
+    - role: sapacext_jvmupdate
+  environment: "{{ proxy_env }}"
+
+# oracle db post steps run in all server
+- name: oracle-db post steps
+  hosts: db_oracle
+  become: True
+  any_errors_fatal: true
+  roles:
+    - role: oracle_post_steps_db
+      when: "'db_oracle' in groups"
+  environment: "{{ proxy_env }}"
+
+# stopping aas service
+- name: AAS stop
+  hosts: aas
+  become: True
+  any_errors_fatal: true
+  vars:
+    instance_number: "{{ instance_numbers.aas }}"
+  roles:
+    - role: sap_stop
+      when: "'aas' in groups"
+  environment: "{{ proxy_env }}"
+
+# stopping pas service
+- name: PAS stop
+  hosts: pas
+  become: True
+  any_errors_fatal: true
+  vars:
+    instance_number: "{{ instance_numbers.pas }}"
+  roles:
+    - role: sap_stop
+      when: "'pas' in groups"
+  environment: "{{ proxy_env }}"
+
+# patching on DB secondary server if "db_oracle_secondary" group is defined and patch_action is pre_patch_binary
+- name: running pre_patch_binary in db_oracle_secondary server
+  hosts: db_oracle_secondary
+  become: True
+  any_errors_fatal: true
+  vars:
+    patch_action: pre_patch_binary
+  roles:
+    - role: oracle_19c_sbp_2205
+      when: "'db_oracle_secondary' in groups"
+  environment: "{{ proxy_env }}"
+
+# patching on DB secondary server if "db_oracle_secondary" group is defined and patch_action is patch_binary
+- name: running patch_binary in db_oracle_secondary server
+  hosts: db_oracle_secondary
+  become: True
+  any_errors_fatal: true
+  vars:
+    patch_action: patch_binary
+  roles:
+    - role: oracle_19c_sbp_2205
+      when: "'db_oracle_secondary' in groups"
+  environment: "{{ proxy_env }}"
+
+# patching on DB primary server if "db_oracle_primary" group is defined and patch_action is pre_patch
+- name: running pre_patch in db_oracle_primary server
+  hosts: db_oracle_primary
+  become: True
+  any_errors_fatal: true
+  vars:
+    patch_action: pre_patch
+  roles:
+    - role: oracle_19c_sbp_2205
+      when: "'db_oracle_primary' in groups"
+  environment: "{{ proxy_env }}"
+
+# patching on DB primary server if "db_oracle_primary" group is defined and patch_action is patch
+- name: running patch in db_oracle_primary server
+  hosts: db_oracle_primary
+  become: True
+  any_errors_fatal: true
+  vars:
+    patch_action: patch
+  roles:
+    - role: oracle_19c_sbp_2205
+      when: "'db_oracle_primary' in groups"
+  environment: "{{ proxy_env }}"
+
+# patching on DB if "db_pas_ascs" group is defined and patch_action is pre_patch
+- name: running pre_patch in db_pas_ascs server
+  hosts: db_pas_ascs
+  become: True
+  any_errors_fatal: true
+  vars:
+    patch_action: pre_patch
+  roles:
+    - role: oracle_19c_sbp_2205
+      when: "'db_pas_ascs' in groups"
+  environment: "{{ proxy_env }}"
+
+# patching on DB if "db_pas_ascs" group is defined and patch_action is patch
+- name: running patch in db_pas_ascs server
+  hosts: db_pas_ascs
+  become: True
+  any_errors_fatal: true
+  vars:
+    patch_action: patch
+  roles:
+    - role: oracle_19c_sbp_2205
+      when: "'db_pas_ascs' in groups"
+  environment: "{{ proxy_env }}"
+
+# starting pas service
+- name: PAS start
+  hosts: pas
+  become: True
+  any_errors_fatal: true
+  vars:
+    instance_number: "{{ instance_numbers.pas }}"
+  roles:
+    - role: sap_start
+      when: "'pas' in groups"
+  environment: "{{ proxy_env }}"
+
+# starting aas service
+- name: AAS start
+  hosts: aas
+  become: True
+  any_errors_fatal: true
+  vars:
+    instance_number: "{{ instance_numbers.aas }}"
+  roles:
+    - role: sap_start
+      when: "'aas' in groups"
+  environment: "{{ proxy_env }}"
+
+# oem agent installation on DB server if "db_oracle" group is defined
+- name: OEM agent install
+  hosts: db_oracle
+  become: True
+  any_errors_fatal: true
+  roles:
+    - role: oem_agent
+      when: "'db_oracle' in groups"
+  environment: "{{ proxy_env }}"
+
+# oem target installation on DB primary server if "db_oracle_primary" group is defined
+- name: OEM target config
+  hosts: db_oracle_primary
+  become: True
+  any_errors_fatal: true
+  roles:
+    - role: oem_target
+      when: "'db_oracle_primary' in groups"
+  environment: "{{ proxy_env }}"
+
+# oem agent installation on DB server if "db_pas_ascs" group is defined
+- name: OEM target config
+  hosts: db_pas_ascs
+  become: True
+  any_errors_fatal: true
+  roles:
+    - role: oem_target
+      when: "'db_pas_ascs' in groups"
+  environment: "{{ proxy_env }}"
+
+# enabling em blackout on db servers
+- name: enabling em blackout
+  hosts: db_oracle
+  roles:
+    - role: oracle_em_blackout
+  environment: "{{ proxy_env }}"
+
+# oracle microservices post install on DB server if "db_oracle" group is defined
+- name: oracle microservices post install
+  hosts: db_oracle
+  become: True
+  any_errors_fatal: true
+  serial: 1
+  roles:
+    - role: oracle_microservices_post_install
+      when: "'db_oracle' in groups"
+  environment: "{{ proxy_env }}"
